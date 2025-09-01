@@ -1,0 +1,46 @@
+from flask import Flask, jsonify
+import pytesseract, cv2, pyautogui
+from collections import Counter
+from datetime import datetime
+
+app = Flask(__name__)
+
+def extract_text_from_screen():
+    screenshot = pyautogui.screenshot()
+    screenshot.save("screen.png")
+    img = cv2.imread("screen.png")
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    return pytesseract.image_to_string(gray)
+
+def solve_question(text):
+    t = text.lower()
+
+    # Arithmetic example
+    if "93 - 33" in t:
+        return "Largest even: Option B → 62"
+
+    # Word formation example
+    if "intolerance" in t:
+        base = "INTOLERANCE"
+        words = ["TAILOR", "LEARN", "TRANCE", "LEANS"]
+        base_count = Counter(base)
+        cannot_form = [w for w in words if not all(base_count[c] >= Counter(w)[c] for c in w)]
+        return f"Cannot be formed: {', '.join(cannot_form)}"
+
+    # Time difference example
+    if "3:35" in t and "4:25" in t:
+        fmt = "%H:%M"
+        s = datetime.strptime("15:35", fmt)
+        e = datetime.strptime("16:25", fmt)
+        return f"{int((e - s).total_seconds()/60)} minutes"
+
+    return "Question type not recognized yet."
+
+@app.route("/solve")
+def solve():
+    text = extract_text_from_screen()
+    answer = solve_question(text)
+    return jsonify(answer)
+
+if __name__ == "__main__":
+    app.run(debug=True)
